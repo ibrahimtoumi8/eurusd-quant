@@ -124,7 +124,7 @@ def load_quant_data(intraday_tf="1h"):
     eur_intra_ohlc = pd.DataFrame()
     fut_vol = pd.Series(dtype=float)
     
-    for name, tk in ["EURUSD", "EURO_FUT", "DXY", "GBPUSD"]:
+    for name in ["EURUSD", "EURO_FUT", "DXY", "GBPUSD"]:
         try:
             df_i = yf.Ticker(tickers[name]).history(period=p_intra, interval=intraday_tf)
             if not df_i.empty:
