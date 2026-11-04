@@ -13,7 +13,7 @@ from plotly.subplots import make_subplots
 # 1. إعدادات الصفحة الأساسية وتصميم الواجهة العصري (Cyberpunk Quant UI)
 # =========================================================
 st.set_page_config(
-    page_title="EUR/USD AI Quant Terminal",
+    page_title="EUR/USD AI Quant Terminal Pro",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -32,7 +32,6 @@ st.markdown("""
         background: radial-gradient(circle at 50% 0%, #0f172a 0%, #05080f 85%);
     }
     
-    /* شريط علوي حي يشبه منصات الكوانت */
     .hud-header {
         background: linear-gradient(90deg, rgba(15,23,42,0.95) 0%, rgba(6,182,212,0.12) 50%, rgba(15,23,42,0.95) 100%);
         border: 1px solid rgba(6, 182, 212, 0.35);
@@ -62,7 +61,6 @@ st.markdown("""
         font-size: 0.85rem;
     }
     
-    /* بطاقات زجاجية عصرية */
     .quant-card {
         background: rgba(15, 23, 42, 0.78);
         border: 1px solid rgba(56, 189, 248, 0.22);
@@ -90,7 +88,28 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* تنسيق مقاييس Streamlit الافتراضية */
+    .sniper-box {
+        background: linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.9) 100%);
+        border: 2px solid #38bdf8;
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 18px;
+        box-shadow: 0 0 30px rgba(56, 189, 248, 0.15);
+        direction: rtl;
+    }
+    
+    .blocker-alert {
+        background: linear-gradient(90deg, rgba(127,29,29,0.9) 0%, rgba(153,27,27,0.85) 100%);
+        border: 2px solid #ef4444;
+        border-radius: 14px;
+        padding: 15px 20px;
+        margin-bottom: 16px;
+        color: #fef2f2;
+        font-weight: 700;
+        direction: rtl;
+        box-shadow: 0 0 25px rgba(239, 68, 68, 0.35);
+    }
+    
     div[data-testid="stMetric"] {
         background: rgba(15, 23, 42, 0.85);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -99,7 +118,6 @@ st.markdown("""
         box-shadow: 0 4px 14px rgba(0,0,0,0.35);
     }
     
-    /* تنسيق أزرار التبويبات لتكون مريحة باللمس على الآيباد */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: rgba(15, 23, 42, 0.85);
@@ -124,18 +142,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ضبط التوقيت الفعلي للجزائر (CET - UTC+1)
 tz_dz = pytz.timezone('Africa/Algiers')
 now_dz = datetime.now(tz_dz)
 current_date_str = now_dz.strftime("%Y-%m-%d | %H:%M:%S")
 
 # =========================================================
-# الشريط الجانبي (Sidebar): إعدادات التحكم السريع
+# الشريط الجانبي (Sidebar): إعدادات التحكم + تيليجرام
 # =========================================================
 with st.sidebar:
-    st.header("⚙️ لوحة التحكم الكمية")
+    st.header("⚙️ لوحة التحكم الكمية Pro")
     st.caption(f"🕒 توقيت الجزائر: **{current_date_str}**")
-    st.caption("🔄 التحديث الآلي للبيانات: **كل ساعة (3600s)**")
+    st.caption("🔄 التحديث الآلي للبيانات: **كل 15 دقيقة**")
     
     if st.button("🔄 تحديث فوري للبيانات الحية", use_container_width=True):
         st.cache_data.clear()
@@ -145,14 +162,21 @@ with st.sidebar:
     exec_tf = st.selectbox(
         "📐 فريم الأوردر فلو والهيكلة اللحظية:",
         ["15m", "1h", "4h"],
-        index=1
+        index=0
     )
-    lookback_bars = st.slider("عدد الشموع لحساب السيولة والفجوات:", min_value=30, max_value=120, value=50, step=5)
+    lookback_bars = st.slider("عدد الشموع لحساب السيولة والفجوات:", min_value=30, max_value=120, value=60, step=5)
     
     st.divider()
-    st.subheader("🛡️ إعدادات حساب FTMO")
+    st.subheader("🛡️ إعدادات حماية حساب FTMO")
     account_balance = st.number_input("رصيد الحساب ($):", min_value=100.0, value=10000.0, step=500.0)
     default_risk_pct = st.slider("نسبة المخاطرة للصفقة (%):", min_value=0.1, max_value=2.0, value=0.5, step=0.05)
+    max_atr_limit = st.slider("حد قفل الأمان لاستهلاك المدى (ATR %):", min_value=80, max_value=150, value=105, step=5)
+    
+    st.divider()
+    st.subheader("📲 تنبيهات التيليجرام الفورية")
+    tg_token = st.text_input("Telegram Bot Token:", type="password", placeholder="أدخلي التوكن من BotFather")
+    tg_chat_id = st.text_input("Telegram Chat ID:", placeholder="أدخلي الـ ID الخاص بك")
+    auto_tg_alert = st.checkbox("إرسال تنبيه تلقائي عند اكتمال شروط القناص", value=False)
 
 # =========================================================
 # 2. دالة التوقيت الزمني (Killzones) بتوقيت الجزائر
@@ -163,7 +187,7 @@ def get_killzone_info(dt):
     if dt.weekday() == 0:
         day_note = "⚠️ الاثنين (بناء سيولة الأسبوع)"
     elif dt.weekday() == 4:
-        day_note = "⚠️ الجمعة (تجنبي التداول - تصفية مراكز)"
+        day_note = "⚠️ الجمعة (تجنبي التداول المتأخر - تصفية مراكز)"
     else:
         day_note = "✅ يوم تداول مثالي (الثلاثاء - الخميس)"
         
@@ -184,23 +208,23 @@ def get_killzone_info(dt):
 kz_text, kz_color = get_killzone_info(now_dz)
 
 # =========================================================
-# 3. محرك جلب البيانات الشامل (يتحدث كل ساعة ttl=3600)
+# 3. محرك جلب البيانات الشامل + رادار الأخبار الذكي
 # =========================================================
-@st.cache_data(ttl=3600, show_spinner="⚡ جاري تشغيل المحرك الكمي وجلب بيانات السيولة والسندات...")
-def load_quant_data(intraday_tf="1h"):
+@st.cache_data(ttl=900, show_spinner="⚡ جاري تشغيل المحرك الكمي وجلب بيانات السيولة والـ SMT...")
+def load_quant_data(intraday_tf="15m"):
     tickers = {
         "EURUSD": "EURUSD=X",
-        "EURO_FUT": "6E=F",    # عقود اليورو الآجلة لبورصة شيكاغو (CME Real Volume)
-        "DXY": "DX-Y.NYB",     # مؤشر الدولار
-        "GBPUSD": "GBPUSD=X",  # الباوند لكشف SMT Divergence
-        "US10Y": "^TNX",       # عوائد السندات الأمريكية 10 سنوات
-        "EU_BOND": "IBGL.L",   # صندوق السندات الحكومية الأوروبية
-        "GOLD": "GC=F",        # الذهب
-        "VIX": "^VIX"          # مؤشر الخوف والسيولة
+        "EURO_FUT": "6E=F",
+        "DXY": "DX-Y.NYB",
+        "GBPUSD": "GBPUSD=X",
+        "US10Y": "^TNX",
+        "EU_BOND": "IBGL.L",
+        "GOLD": "GC=F",
+        "VIX": "^VIX"
     }
     
     period_map = {"15m": "5d", "1h": "1mo", "4h": "3mo"}
-    p_intra = period_map.get(intraday_tf, "1mo")
+    p_intra = period_map.get(intraday_tf, "5d")
     
     daily_close = {}
     eur_daily_ohlc = pd.DataFrame()
@@ -219,10 +243,12 @@ def load_quant_data(intraday_tf="1h"):
     df_daily_macro = pd.DataFrame(daily_close).sort_index().ffill().bfill()
     
     intra_close = {}
+    intra_high = {}
+    intra_low = {}
     eur_intra_ohlc = pd.DataFrame()
     fut_vol = pd.Series(dtype=float)
     
-    for name in ["EURUSD", "EURO_FUT", "DXY", "GBPUSD"]:
+    for name in ["EURUSD", "EURO_FUT", "DXY", "GBPUSD", "GOLD"]:
         try:
             df_i = yf.Ticker(tickers[name]).history(period=p_intra, interval=intraday_tf)
             if not df_i.empty:
@@ -231,6 +257,8 @@ def load_quant_data(intraday_tf="1h"):
                 else:
                     df_i.index = df_i.index.tz_localize('UTC').tz_convert('Africa/Algiers')
                 intra_close[name] = df_i['Close']
+                intra_high[name] = df_i['High']
+                intra_low[name] = df_i['Low']
                 if name == "EURUSD":
                     eur_intra_ohlc = df_i.copy()
                 elif name == "EURO_FUT":
@@ -241,8 +269,10 @@ def load_quant_data(intraday_tf="1h"):
     if not eur_intra_ohlc.empty:
         base_idx = eur_intra_ohlc.index
         df_intra_macro = pd.DataFrame(index=base_idx)
-        for k, s in intra_close.items():
-            df_intra_macro[k] = s.reindex(base_idx, method='ffill').bfill()
+        for k in intra_close.keys():
+            df_intra_macro[f"{k}_Close"] = intra_close[k].reindex(base_idx, method='ffill').bfill()
+            df_intra_macro[f"{k}_High"] = intra_high[k].reindex(base_idx, method='ffill').bfill()
+            df_intra_macro[f"{k}_Low"] = intra_low[k].reindex(base_idx, method='ffill').bfill()
             
         if not fut_vol.empty:
             aligned_vol = fut_vol.reindex(base_idx, method='ffill').fillna(0)
@@ -279,17 +309,69 @@ def fetch_cftc_cot_euro():
         pass
     return pd.DataFrame()
 
+@st.cache_data(ttl=1800)
+def fetch_algeria_forex_calendar():
+    url = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
+    try:
+        resp = requests.get(url, timeout=10)
+        root = ET.fromstring(resp.content)
+        events = []
+        for item in root.findall('event'):
+            country = item.find('country').text if item.find('country') is not None else ""
+            impact = item.find('impact').text if item.find('impact') is not None else ""
+            if country in ['USD', 'EUR'] and impact in ['High', 'Medium']:
+                date_s = item.find('date').text or ""
+                time_s = item.find('time').text or ""
+                dz_time_display = time_s
+                dt_dz_ev = None
+                try:
+                    dt_gmt = datetime.strptime(f"{date_s} {time_s}", "%m-%d-%Y %I:%M%p")
+                    dt_gmt = pytz.timezone('UTC').localize(dt_gmt)
+                    dt_dz_ev = dt_gmt.astimezone(tz_dz)
+                    dz_time_display = dt_dz_ev.strftime("%H:%M")
+                    date_s = dt_dz_ev.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+                events.append({
+                    "التاريخ": date_s,
+                    "التوقيت": dz_time_display,
+                    "العملة": "🇺🇸 USD" if country == "USD" else "🇪🇺 EUR",
+                    "القوة": "🔥 قوي جداً" if impact == "High" else "🔸 متوسط",
+                    "الخبر الاقتصادي": item.find('title').text or "-",
+                    "التوقع": item.find('forecast').text or "-",
+                    "السابق": item.find('previous').text or "-",
+                    "dt_obj": dt_dz_ev,
+                    "raw_impact": impact
+                })
+        return pd.DataFrame(events)
+    except Exception:
+        return pd.DataFrame()
+
 df_daily_macro, eur_daily, df_intra_macro, eur_intra = load_quant_data(exec_tf)
 df_cot = fetch_cftc_cot_euro()
+df_news_full = fetch_algeria_forex_calendar()
 
 if eur_daily.empty or eur_intra.empty:
     st.error("⚠️ تعذر جلب البيانات حالياً. اضغطي على زر التحديث الفوري في القائمة الجانبية.")
     st.stop()
 
-# =========================================================
-# 4. محرك الخوارزميات الكمية + الإضافات الـ 3 الجديدة
-# =========================================================
+# فحص الأخبار الحمراء القريبة (قفل الأمان الإخباري)
+news_danger_active = False
+upcoming_high_news = "لا توجد أخبار حمراء قريبة"
+if not df_news_full.empty and 'dt_obj' in df_news_full.columns:
+    for _, row in df_news_full.iterrows():
+        if row['raw_impact'] == 'High' and pd.notnull(row['dt_obj']):
+            diff_mins = (row['dt_obj'] - now_dz).total_seconds() / 60.0
+            if -30 <= diff_mins <= 45:
+                news_danger_active = True
+                upcoming_high_news = f"🚨 حذاري: خبر ({row['الخبر الاقتصادي']}) على {row['العملة']} خلال {int(diff_mins)} دقيقة!"
+                break
+            elif 45 < diff_mins <= 240:
+                upcoming_high_news = f"⚠️ تنبيه: خبر ({row['الخبر الاقتصادي']}) بعد {int(diff_mins)} دقيقة ({row['التوقيت']})"
 
+# =========================================================
+# 4. محرك الخوارزميات الكمية + SMC (OB, BOS/CHoCH, FVG, SMT)
+# =========================================================
 current_price = float(eur_intra['Close'].iloc[-1])
 pdh = float(eur_daily['High'].iloc[-2])
 pdl = float(eur_daily['Low'].iloc[-2])
@@ -299,7 +381,6 @@ today_low = float(eur_daily['Low'].iloc[-1])
 pwh = float(eur_daily['High'].iloc[-6:-1].max()) if len(eur_daily) >= 6 else pdh
 pwl = float(eur_daily['Low'].iloc[-6:-1].min()) if len(eur_daily) >= 6 else pdl
 
-# المتوسطات والانحدار الخطي اليومي
 eur_daily['EMA20'] = eur_daily['Close'].ewm(span=20, adjust=False).mean()
 eur_daily['EMA50'] = eur_daily['Close'].ewm(span=50, adjust=False).mean()
 eur_daily['Returns'] = eur_daily['Close'].pct_change()
@@ -314,7 +395,6 @@ mean_20d = float(eur_daily['Close'].rolling(20).mean().iloc[-1])
 std_20d = float(eur_daily['Close'].rolling(20).std().iloc[-1])
 z_score_daily = (current_price - mean_20d) / std_20d if std_20d > 0 else 0.0
 
-# معامل هيرست (Hurst Exponent)
 def compute_hurst_exponent(price_series):
     ts = np.log(price_series.dropna().values)
     if len(ts) < 30:
@@ -337,7 +417,7 @@ atr_used_pct = (today_range_pips / atr_14d_pips * 100) if atr_14d_pips > 0 else 
 daily_std_ret = float(eur_daily['Returns'].iloc[-60:].std())
 var_95_pips = float(1.645 * daily_std_ret * current_price * 10000)
 
-# حساب الـ VWAP البنكي
+# VWAP & CVD & MFI
 eur_intra['Typ_Price'] = (eur_intra['High'] + eur_intra['Low'] + eur_intra['Close']) / 3.0
 eur_intra['Date_Group'] = eur_intra.index.date
 eur_intra['PV'] = eur_intra['Typ_Price'] * eur_intra['Real_Volume']
@@ -346,7 +426,6 @@ cum_vol = eur_intra.groupby('Date_Group')['Real_Volume'].cumsum().replace(0, 1e-
 eur_intra['VWAP'] = cum_pv / cum_vol
 current_vwap = float(eur_intra['VWAP'].iloc[-1])
 
-# الأوردر فلو والدلتا التراكمية (CVD)
 hl_range = (eur_intra['High'] - eur_intra['Low']).replace(0, 1e-6)
 buy_ratio = (eur_intra['Close'] - eur_intra['Low']) / hl_range
 sell_ratio = (eur_intra['High'] - eur_intra['Close']) / hl_range
@@ -355,9 +434,6 @@ eur_intra['Sell_Vol'] = eur_intra['Real_Volume'] * sell_ratio
 eur_intra['Delta'] = eur_intra['Buy_Vol'] - eur_intra['Sell_Vol']
 eur_intra['CVD'] = eur_intra['Delta'].cumsum()
 
-# ---------------------------------------------------------
-# [إضافة 2 الجديدة]: مؤشر تدفق السيولة المؤسساتية (MFI Quant & Liquidity Drain)
-# ---------------------------------------------------------
 raw_money_flow = eur_intra['Typ_Price'] * eur_intra['Real_Volume']
 tp_diff = eur_intra['Typ_Price'].diff()
 pos_mf = np.where(tp_diff > 0, raw_money_flow, 0.0)
@@ -406,7 +482,41 @@ else:
     of_score = 0.0
 
 # ---------------------------------------------------------
-# [إضافة 3 الجديدة]: مصفوفة سيولة الجلسات الآلية (Session Liquidity Matrix)
+# [إضافة جديدة]: كاشف الـ SMT Divergence اللحظي (EURUSD vs GBPUSD & DXY)
+# ---------------------------------------------------------
+def detect_intraday_smt(df_macro_slice, lookback=16):
+    if df_macro_slice.empty or 'GBPUSD_High' not in df_macro_slice or 'DXY_High' not in df_macro_slice:
+        return "⚪ بيانات الارتباط اللحظي قيد التحديث", 0.0
+    sub = df_macro_slice.iloc[-lookback:]
+    half = lookback // 2
+    p1, p2 = sub.iloc[:half], sub.iloc[half:]
+    
+    eur_h1, eur_h2 = p1['EURUSD_High'].max(), p2['EURUSD_High'].max()
+    gbp_h1, gbp_h2 = p1['GBPUSD_High'].max(), p2['GBPUSD_High'].max()
+    dxy_l1, dxy_l2 = p1['DXY_Low'].min(), p2['DXY_Low'].min()
+    
+    eur_l1, eur_l2 = p1['EURUSD_Low'].min(), p2['EURUSD_Low'].min()
+    gbp_l1, gbp_l2 = p1['GBPUSD_Low'].min(), p2['GBPUSD_Low'].min()
+    dxy_h1, dxy_h2 = p1['DXY_High'].max(), p2['DXY_High'].max()
+    
+    # فحص SMT الشرائي عند القيعان
+    if (eur_l2 < eur_l1 and gbp_l2 > gbp_l1) or (eur_l2 > eur_l1 and gbp_l2 < gbp_l1):
+        return "🟢 تباعد شرائي مؤكد (Bullish SMT مع الباوند عند القاع)", 1.5
+    if eur_l2 < eur_l1 and dxy_h2 < dxy_h1:
+        return "🟢 تباعد شرائي مؤسساتي (Bullish SMT مع مؤشر الدولار DXY)", 1.5
+        
+    # فحص SMT البيعي عند القمم
+    if (eur_h2 > eur_h1 and gbp_h2 < gbp_h1) or (eur_h2 < eur_h1 and gbp_h2 > gbp_h1):
+        return "🔴 تباعد بيعي مؤكد (Bearish SMT مع الباوند عند القمة)", -1.5
+    if eur_h2 > eur_h1 and dxy_l2 > dxy_l1:
+        return "🔴 تباعد بيعي مؤسساتي (Bearish SMT مع مؤشر الدولار DXY)", -1.5
+        
+    return "⚪ حركة متناغمة (لا يوجد تباعد SMT لحظي)", 0.0
+
+smt_status_txt, smt_score = detect_intraday_smt(df_intra_macro, lookback=20)
+
+# ---------------------------------------------------------
+# مصفوفة سيولة الجلسات الآلية
 # ---------------------------------------------------------
 latest_day = eur_intra.index[-1].date()
 day_df = eur_intra[eur_intra.index.date == latest_day]
@@ -437,70 +547,91 @@ lon_high, lon_low, lon_status = analyze_session_liquidity(day_df, 8, 12, recent_
 ny_high, ny_low, ny_status = analyze_session_liquidity(day_df, 13, 17, recent_intra.iloc[-6:])
 
 # ---------------------------------------------------------
-# [إضافة 1 الجديدة]: خوارزمية تتبع فجوات صناع السوق ونسبة الامتصاص (FVG Mitigation %)
+# [إضافة SMC المتكاملة]: FVG + Order Blocks (OB) + BOS / CHoCH
 # ---------------------------------------------------------
-def scan_fvg_matrix(df_slice):
+def scan_smc_structure_and_fvg(df_slice):
     fvg_rows = []
+    bull_zones = []
+    bear_zones = []
     nearest_bull, nearest_bear = "لا توجد فجوة مفتوحة", "لا توجد فجوة مفتوحة"
     n = len(df_slice)
-    for i in range(max(0, n - 50), n - 2):
+    
+    # كسر الهيكلة اللحظية (BOS / CHoCH)
+    swing_h = float(df_slice['High'].iloc[-22:-3].max())
+    swing_l = float(df_slice['Low'].iloc[-22:-3].min())
+    prev_trend_up = float(df_slice['Close'].iloc[-3]) > float(df_slice['Close'].iloc[-20])
+    cur_c = float(df_slice['Close'].iloc[-1])
+    
+    if cur_c > swing_h:
+        structure_tag = "🟢 BOS شرائي (كسر استمراري صاعد)" if prev_trend_up else "🟢 CHoCH شرائي (تغير هيكلة لصعود!)"
+    elif cur_c < swing_l:
+        structure_tag = "🔴 BOS بيعي (كسر استمراري هابط)" if not prev_trend_up else "🔴 CHoCH بيعي (تغير هيكلة لهبوط!)"
+    else:
+        structure_tag = f"⚪ تداول داخلي بين القمة ({swing_h:.4f}) والقاع ({swing_l:.4f})"
+
+    for i in range(max(1, n - 55), n - 2):
         h_i = float(df_slice['High'].iloc[i])
         l_i = float(df_slice['Low'].iloc[i])
+        o_i = float(df_slice['Open'].iloc[i])
+        c_i = float(df_slice['Close'].iloc[i])
         h_i2 = float(df_slice['High'].iloc[i+2])
         l_i2 = float(df_slice['Low'].iloc[i+2])
         t_str = df_slice.index[i+1].strftime("%m-%d %H:%M")
         sub_bars = df_slice.iloc[i+3:]
         
-        # فجوة شرائية (Bullish FVG)
+        # فجوة شرائية + فحص Order Block الشرائي
         if l_i2 > h_i and (l_i2 - h_i) >= 0.00015:
             gap_size = l_i2 - h_i
             min_after = float(sub_bars['Low'].min()) if not sub_bars.empty else l_i2
-            if min_after <= h_i:
-                mit_pct = 100.0
-            elif min_after >= l_i2:
-                mit_pct = 0.0
-            else:
-                mit_pct = ((l_i2 - min_after) / gap_size) * 100.0
-            if mit_pct < 95.0:
+            mit_pct = 100.0 if min_after <= h_i else (0.0 if min_after >= l_i2 else ((l_i2 - min_after) / gap_size) * 100.0)
+            
+            # هل الشمعة i أو i-1 كانت شمعة هابطة شكلت Order Block؟
+            is_ob = (c_i < o_i) or (float(df_slice['Close'].iloc[i-1]) < float(df_slice['Open'].iloc[i-1]))
+            ob_low = min(l_i, float(df_slice['Low'].iloc[i-1]))
+            
+            if mit_pct < 92.0:
                 zone_txt = f"{h_i:.4f} - {l_i2:.4f}"
                 nearest_bull = f"{zone_txt} (ممتلئة {mit_pct:.0f}%)"
+                confluence_txt = "💎 FVG + Order Block" if is_ob else "🟢 FVG شرائية"
+                bull_zones.append({"low": h_i, "high": l_i2, "mid": (h_i + l_i2)/2.0, "ob_low": ob_low, "mit": mit_pct})
                 fvg_rows.append({
-                    "النوع": "🟢 FVG شرائية",
+                    "النوع والتداخل": confluence_txt,
                     "التوقيت": t_str,
                     "النطاق السعري": zone_txt,
                     "الحجم (Pips)": f"{gap_size*10000:.1f}",
-                    "نسبة الملء (Mitigation)": f"{mit_pct:.0f}%",
+                    "نسبة الملء": f"{mit_pct:.0f}%",
                     "الحالة": "🔥 بكر (Unmitigated)" if mit_pct == 0 else "⚡ مختبرة جزئياً"
                 })
                 
-        # فجوة بيعية (Bearish FVG)
+        # فجوة بيعية + فحص Order Block البيعي
         if h_i2 < l_i and (l_i - h_i2) >= 0.00015:
             gap_size = l_i - h_i2
             max_after = float(sub_bars['High'].max()) if not sub_bars.empty else h_i2
-            if max_after >= l_i:
-                mit_pct = 100.0
-            elif max_after <= h_i2:
-                mit_pct = 0.0
-            else:
-                mit_pct = ((max_after - h_i2) / gap_size) * 100.0
-            if mit_pct < 95.0:
+            mit_pct = 100.0 if max_after >= l_i else (0.0 if max_after <= h_i2 else ((max_after - h_i2) / gap_size) * 100.0)
+            
+            is_ob = (c_i > o_i) or (float(df_slice['Close'].iloc[i-1]) > float(df_slice['Open'].iloc[i-1]))
+            ob_high = max(h_i, float(df_slice['High'].iloc[i-1]))
+            
+            if mit_pct < 92.0:
                 zone_txt = f"{h_i2:.4f} - {l_i:.4f}"
                 nearest_bear = f"{zone_txt} (ممتلئة {mit_pct:.0f}%)"
+                confluence_txt = "💎 FVG + Order Block" if is_ob else "🔴 FVG بيعية"
+                bear_zones.append({"low": h_i2, "high": l_i, "mid": (h_i2 + l_i)/2.0, "ob_high": ob_high, "mit": mit_pct})
                 fvg_rows.append({
-                    "النوع": "🔴 FVG بيعية",
+                    "النوع والتداخل": confluence_txt,
                     "التوقيت": t_str,
                     "النطاق السعري": zone_txt,
                     "الحجم (Pips)": f"{gap_size*10000:.1f}",
-                    "نسبة الملء (Mitigation)": f"{mit_pct:.0f}%",
+                    "نسبة الملء": f"{mit_pct:.0f}%",
                     "الحالة": "🔥 بكر (Unmitigated)" if mit_pct == 0 else "⚡ مختبرة جزئياً"
                 })
                 
     df_fvg = pd.DataFrame(fvg_rows[::-1][:8])
-    return nearest_bull, nearest_bear, df_fvg
+    return nearest_bull, nearest_bear, df_fvg, bull_zones, bear_zones, structure_tag
 
-nearest_bull_fvg, nearest_bear_fvg, df_fvg_matrix = scan_fvg_matrix(eur_intra)
+nearest_bull_fvg, nearest_bear_fvg, df_fvg_matrix, bull_zones, bear_zones, smc_structure_tag = scan_smc_structure_and_fvg(eur_intra)
 
-# حساب الفوليوم بروفايل (POC, VAH, VAL)
+# الفوليوم بروفايل (POC, VAH, VAL)
 def compute_volume_profile(df_slice, num_bins=28):
     low_min = float(df_slice['Low'].min())
     high_max = float(df_slice['High'].max())
@@ -539,11 +670,11 @@ def compute_volume_profile(df_slice, num_bins=28):
 
 poc_price, vah_price, val_price, vp_table = compute_volume_profile(recent_intra, num_bins=28)
 
-# هيكلة التوازن (50% Equilibrium) وسحب سيولة أمس
 range_high = float(recent_intra['High'].max())
 range_low = float(recent_intra['Low'].min())
 equilibrium_50 = (range_high + range_low) / 2.0
-dealing_zone = "Discount (رخيصة تحت 50%)" if current_price < equilibrium_50 else "Premium (غالية فوق 50%)"
+is_discount = current_price < equilibrium_50
+dealing_zone = "Discount (رخيصة تحت 50%)" if is_discount else "Premium (غالية فوق 50%)"
 
 if today_high > pdh and current_price < pdh:
     sweep_signal = "🔴 سحب سيولة قمة أمس وارتداد (PDH Sweep)"
@@ -561,7 +692,6 @@ else:
     sweep_signal = "⚪ التداول داخل نطاق أمس (PDH/PDL Intact)"
     sweep_score = 0.0
 
-# العوائد وتقرير COT
 us10y_chg_5d = float(df_daily_macro['US10Y'].pct_change(5).iloc[-1] * 100) if 'US10Y' in df_daily_macro else 0.0
 eu_bond_price_chg_5d = float(df_daily_macro['EU_BOND'].pct_change(5).iloc[-1] * 100) if 'EU_BOND' in df_daily_macro else 0.0
 eu_yield_proxy_chg = -eu_bond_price_chg_5d
@@ -580,13 +710,12 @@ else:
     latest_cot_net, cot_change, cot_long_pct = 0.0, 0.0, 50.0
 
 # =========================================================
-# 5. مصفوفة القرار الكمي الموحدة (13.5 نقطة موزونة)
+# 5. مصفوفة القرار الكمي الموحدة (15 نقطة موزونة مع SMT)
 # =========================================================
 quant_factors = []
 weighted_score = 0.0
-max_possible_score = 13.5
+max_possible_score = 15.0
 
-# 1. الاتجاه اليومي
 if current_price > eur_daily['EMA20'].iloc[-1] and slope_d > 0:
     weighted_score += 2.0
     quant_factors.append(("الاتجاه الكمي اليومي (1D Trend)", "+2.0", "السعر فوق EMA20 اليومي وميل الانحدار موجب"))
@@ -596,29 +725,26 @@ elif current_price < eur_daily['EMA20'].iloc[-1] and slope_d < 0:
 else:
     quant_factors.append(("الاتجاه الكمي اليومي (1D Trend)", "0.0", "توازن بين المتوسط اليومي والانحدار"))
 
-# 2. POC & VWAP
 vp_vwap_pts = (1.0 if current_price > poc_price else -1.0) + (1.0 if current_price > current_vwap else -1.0)
 weighted_score += vp_vwap_pts
 quant_factors.append(("تمركز السيولة (POC & VWAP)", f"{vp_vwap_pts:+.1f}", f"POC: {poc_price:.4f} | VWAP: {current_vwap:.4f}"))
 
-# 3. Order Flow CVD
 weighted_score += of_score
 quant_factors.append(("الأوردر فلو والامتصاص (CVD)", f"{of_score:+.1f}", absorption_status))
 
-# 4. Institutional MFI (الجديد)
 weighted_score += mfi_score
 quant_factors.append(("تدفق السيولة المؤسساتية (MFI Quant)", f"{mfi_score:+.1f}", mfi_status))
 
-# 5. PDH / PDL Sweep
+weighted_score += smt_score
+quant_factors.append(("مصفوفة التباعد اللحظي (SMT Divergence)", f"{smt_score:+.1f}", smt_status_txt))
+
 weighted_score += sweep_score
 quant_factors.append(("سيولة اليوم السابق (PDH/PDL)", f"{sweep_score:+.1f}", sweep_signal))
 
-# 6. Yield Spread & DXY
 macro_pts = (1.0 if dxy_chg_5d < 0 else -1.0) + (1.0 if yield_spread_diff > 0 else -1.0)
 weighted_score += macro_pts
 quant_factors.append(("فارق العوائد والدولار (Macro Spread)", f"{macro_pts:+.1f}", f"فارق العائد: {yield_spread_diff:+.2f}% | DXY: {dxy_chg_5d:+.2f}%"))
 
-# 7. CFTC COT
 cot_pts = 2.0 if (latest_cot_net > 0 and cot_change >= 0) else (-2.0 if (latest_cot_net < 0 and cot_change <= 0) else (1.0 if latest_cot_net > 0 else -1.0))
 weighted_score += cot_pts
 quant_factors.append(("تمركز الصناديق (CFTC COT)", f"{cot_pts:+.1f}", f"صافي العقود: {latest_cot_net:+,.0f} ({cot_change:+,.0f} أسبوعياً)"))
@@ -627,27 +753,136 @@ bull_probability = float(np.clip(((weighted_score + max_possible_score) / (2 * m
 bear_probability = 100.0 - bull_probability
 quant_edge = abs(bull_probability - 50.0)
 
-if bull_probability >= 58.0:
+# =========================================================
+# 6. محرك خطة القناص الآلية (Auto-Trade Setup) + قفل الأمان (Trade Blocker)
+# =========================================================
+atr_buffer = max(0.0012, (atr_14d_pips / 10000.0) * 0.25)
+
+if bull_probability >= 55.0:
+    trade_dir = "BUY"
+    if bull_zones:
+        best_z = bull_zones[-1]
+        auto_entry = round(best_z['mid'], 4)
+        auto_sl = round(min(best_z['ob_low'], asia_low if asia_low < auto_entry else best_z['low']) - 0.0005, 4)
+    else:
+        auto_entry = round(min(current_vwap, poc_price, current_price - 0.0010), 4)
+        auto_sl = round(auto_entry - atr_buffer, 4)
+        
+    if auto_entry - auto_sl < 0.0008 or auto_sl >= auto_entry:
+        auto_sl = round(auto_entry - 0.0018, 4)
+    risk_dist = auto_entry - auto_sl
+    auto_tp1 = round(auto_entry + (risk_dist * 2.0), 4)
+    auto_tp2 = round(max(pdh, range_high, auto_entry + (risk_dist * 3.0)), 4)
+    order_type_str = "Buy Limit (أمر شراء معلق)"
+    
+elif bear_probability >= 55.0:
+    trade_dir = "SELL"
+    if bear_zones:
+        best_z = bear_zones[-1]
+        auto_entry = round(best_z['mid'], 4)
+        auto_sl = round(max(best_z['ob_high'], asia_high if asia_high > auto_entry else best_z['high']) + 0.0005, 4)
+    else:
+        auto_entry = round(max(current_vwap, poc_price, current_price + 0.0010), 4)
+        auto_sl = round(auto_entry + atr_buffer, 4)
+        
+    if auto_sl - auto_entry < 0.0008 or auto_sl <= auto_entry:
+        auto_sl = round(auto_entry + 0.0018, 4)
+    risk_dist = auto_sl - auto_entry
+    auto_tp1 = round(auto_entry - (risk_dist * 2.0), 4)
+    auto_tp2 = round(min(pdl, range_low, auto_entry - (risk_dist * 3.0)), 4)
+    order_type_str = "Sell Limit (أمر بيع معلق)"
+else:
+    trade_dir = "WAIT"
+    auto_entry = round(current_price, 4)
+    auto_sl = round(current_price - 0.0015, 4)
+    auto_tp1 = round(current_price + 0.0030, 4)
+    auto_tp2 = round(current_price + 0.0045, 4)
+    order_type_str = "انتظار وضوح الاتجاه"
+
+auto_sl_pips = max(1.0, abs(auto_entry - auto_sl) * 10000.0)
+auto_tp_pips = abs(auto_tp1 - auto_entry) * 10000.0
+auto_risk_usd = account_balance * (default_risk_pct / 100.0)
+auto_lot_size = round(auto_risk_usd / (auto_sl_pips * 10.0), 2)
+auto_reward_usd = auto_lot_size * auto_tp_pips * 10.0
+
+# فحص شروط قفل الأمان الذكي (Trade Blocker)
+blocker_reasons = []
+if news_danger_active:
+    blocker_reasons.append(upcoming_high_news)
+if atr_used_pct >= max_atr_limit:
+    blocker_reasons.append(f"⛔ استنزاف المدى اليومي (ATR وصل إلى {atr_used_pct:.0f}% — السوق أفرغ طاقته اليومية، ممنوع الدخول المباشر!)")
+if trade_dir == "BUY" and not is_discount and current_price > auto_entry + 0.0008:
+    blocker_reasons.append("⚠️ السعر الحالي في منطقة غالية (Premium فوق 50%) — ممنوع الشراء بالسعر الحي، التزمي بأمر Buy Limit فقط!")
+if trade_dir == "SELL" and is_discount and current_price < auto_entry - 0.0008:
+    blocker_reasons.append("⚠️ السعر الحالي في منطقة رخيصة (Discount تحت 50%) — ممنوع البيع بالسعر الحي، التزمي بأمر Sell Limit فقط!")
+if trade_dir == "BUY" and current_mfi < 32:
+    blocker_reasons.append("⚠️ تدفق السيولة سلبي جداً حالياً (MFI هابط بقوة) — انتظري توقف النزيف البيعي قبل التفعيل.")
+if trade_dir == "SELL" and current_mfi > 68:
+    blocker_reasons.append("⚠️ تدفق السيولة إيجابي بقوة حالياً (MFI صاعد) — لا تبيعي أمام اندفاع المشترين.")
+
+if bull_probability >= 55.0:
     bias_badge = "🟢 BUY ONLY BIAS — تمركز شرائي مؤسساتي"
     bias_color = "#10b981"
-    action_plan = f"احتمال الصعود الكمي **{bull_probability:.1f}%** (تفوق إحصائي +{quant_edge:.1f}%). انتظري سحب سيولة آسيا ({asia_low:.4f}) أو الدخول من الفجوة الشرائية ({nearest_bull_fvg})."
-elif bear_probability >= 58.0:
+    action_plan = f"احتمال الصعود الكمي **{bull_probability:.1f}%** (تفوق +{quant_edge:.1f}%). هيكلة السوق: `{smc_structure_tag}` | الـ SMT: `{smt_status_txt}`"
+elif bear_probability >= 55.0:
     bias_badge = "🔴 SELL ONLY BIAS — تمركز بيعي مؤسساتي"
     bias_color = "#ef4444"
-    action_plan = f"احتمال الهبوط الكمي **{bear_probability:.1f}%** (تفوق إحصائي +{quant_edge:.1f}%). انتظري سحب قمة آسيا ({asia_high:.4f}) أو الدخول من الفجوة البيعية ({nearest_bear_fvg})."
+    action_plan = f"احتمال الهبوط الكمي **{bear_probability:.1f}%** (تفوق +{quant_edge:.1f}%). هيكلة السوق: `{smc_structure_tag}` | الـ SMT: `{smt_status_txt}`"
 else:
     bias_badge = "🟡 NEUTRAL / WAIT — حياد وانتظار سحب السيولة"
     bias_color = "#f59e0b"
     action_plan = f"السوق متوازن إحصائياً ({bull_probability:.0f}% مقابل {bear_probability:.0f}%). انتظري سحب قمة أمس ({pdh:.4f}) أو قاع أمس ({pdl:.4f})."
 
+# دالة إرسال تنبيه التيليجرام
+def send_telegram_setup(token, chat_id, msg_text):
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": msg_text, "parse_mode": "Markdown"}
+    try:
+        r = requests.post(url, json=payload, timeout=8)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+tg_message_body = (
+    f"⚡ *EUR/USD AI QUANT SIGNAL*\n"
+    f"━━━━━━━━━━━━━━━\n"
+    f"🧭 *الاتجاه:* {bias_badge}\n"
+    f"📌 *نوع الأمر:* `{order_type_str}`\n"
+    f"🎯 *سعر الدخول:* `{auto_entry:.4f}`\n"
+    f"🛑 *الستوب لوس المحمي:* `{auto_sl:.4f}` ({auto_sl_pips:.1f} نقطة)\n"
+    f"💰 *الهدف الأول (1:2):* `{auto_tp1:.4f}`\n"
+    f"🚀 *الهدف الثاني:* `{auto_tp2:.4f}`\n"
+    f"⚖️ *حجم العقد (FTMO Lot):* `{auto_lot_size:.2f} Lot` (مخاطرة -${auto_risk_usd:.1f})\n"
+    f"━━━━━━━━━━━━━━━\n"
+    f"📊 *MFI:* {current_mfi:.1f} | *ATR:* {atr_used_pct:.0f}%\n"
+    f"🔗 *SMT:* {smt_status_txt}"
+)
+
+with st.sidebar:
+    if st.button("🚀 إرسال خطة الصفقة للتيليجرام الآن", use_container_width=True):
+        if tg_token and tg_chat_id:
+            ok = send_telegram_setup(tg_token, tg_chat_id, tg_message_body)
+            if ok:
+                st.success("✅ تم إرسال الخطة إلى تيليجرام بنجاح!")
+            else:
+                st.error("❌ فشل الإرسال، تأكدي من صحة الـ Token والـ Chat ID.")
+        else:
+            st.warning("⚠️ أدخلي الـ Token والـ Chat ID أولاً.")
+
+if auto_tg_alert and tg_token and tg_chat_id and len(blocker_reasons) == 0 and trade_dir in ["BUY", "SELL"]:
+    if abs(current_price - auto_entry) <= 0.0006:
+        if st.session_state.get("last_alert_Sent") != f"{trade_dir}_{auto_entry}":
+            if send_telegram_setup(tg_token, tg_chat_id, "🔔 *تنبيه دخول فوري: السعر وصل لمنطقة القناص!*\n\n" + tg_message_body):
+                st.session_state["last_alert_Sent"] = f"{trade_dir}_{auto_entry}"
+
 # =========================================================
-# 6. الشاشة الرئيسية العصرية (Cyberpunk Command Deck)
+# 7. الشاشة الرئيسية العصرية (Cyberpunk Command Deck)
 # =========================================================
 st.markdown(f"""
 <div class="hud-header">
     <div>
-        <div class="hud-title">⚡ EUR/USD INSTITUTIONAL QUANT TERMINAL</div>
-        <div style="color: {kz_color}; font-size: 0.9rem; font-weight: 600; margin-top: 4px;">{kz_text}</div>
+        <div class="hud-title">⚡ EUR/USD INSTITUTIONAL QUANT TERMINAL PRO</div>
+        <div style="color: {kz_color}; font-size: 0.9rem; font-weight: 600; margin-top: 4px;">{kz_text}  |  {upcoming_high_news}</div>
     </div>
     <div style="text-align: left;">
         <span class="hud-badge">LIVE STREAM | {current_date_str}</span>
@@ -655,11 +890,50 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# قسم القيادة البصري: رادار القرار الكمي + بطاقة التوجيه + بطاقات الـ HUD الأربع
+# عرض قفل الأمان الذكي إذا كان هناك خطر
+if blocker_reasons:
+    reasons_html = "<br>".join([f"• {r}" for r in blocker_reasons])
+    st.markdown(f"""
+    <div class="blocker-alert">
+        <div style="font-size: 1.15rem; margin-bottom: 6px;">🛡️ قفل الأمان الذكي مفعل (TRADE BLOCKER ACTIVE) — لا تضغطي زر الدخول المباشر الآن!</div>
+        <div style="font-size: 0.9rem; font-weight: 600; line-height: 1.6;">{reasons_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# بطاقة خطة القناص الآلية الجاهزة (Auto-Trade Setup Box)
+st.markdown(f"""
+<div class="sniper-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        <div style="font-size:1.15rem; font-weight:800; color:#38bdf8;">🎯 خطة القناص الآلية الجاهزة لحساب FTMO ({order_type_str})</div>
+        <div style="font-size:0.85rem; color:#fde047; font-weight:700;">{smc_structure_tag}</div>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; text-align:center;">
+        <div style="background:rgba(15,23,42,0.8); padding:10px; border-radius:10px; border:1px solid rgba(56,189,248,0.3);">
+            <div style="font-size:0.8rem; color:#94a3b8;">سعر الأمر المعلق (Entry)</div>
+            <div style="font-size:1.35rem; font-weight:800; color:#38bdf8; font-family:'JetBrains Mono';">{auto_entry:.4f}</div>
+        </div>
+        <div style="background:rgba(15,23,42,0.8); padding:10px; border-radius:10px; border:1px solid rgba(239,68,68,0.4);">
+            <div style="font-size:0.8rem; color:#94a3b8;">الستوب لوس المحمي (SL)</div>
+            <div style="font-size:1.35rem; font-weight:800; color:#ef4444; font-family:'JetBrains Mono';">{auto_sl:.4f}</div>
+            <div style="font-size:0.75rem; color:#fca5a5;">({auto_sl_pips:.1f} نقطة | -${auto_risk_usd:.1f})</div>
+        </div>
+        <div style="background:rgba(15,23,42,0.8); padding:10px; border-radius:10px; border:1px solid rgba(16,185,129,0.4);">
+            <div style="font-size:0.8rem; color:#94a3b8;">الهدف الآمن (TP1 - 1:2)</div>
+            <div style="font-size:1.35rem; font-weight:800; color:#10b981; font-family:'JetBrains Mono';">{auto_tp1:.4f}</div>
+            <div style="font-size:0.75rem; color:#6ee7b7;">(+${auto_reward_usd:.1f})</div>
+        </div>
+        <div style="background:rgba(15,23,42,0.8); padding:10px; border-radius:10px; border:1px solid rgba(245,158,11,0.4);">
+            <div style="font-size:0.8rem; color:#94a3b8;">حجم العقد الصارم (FTMO Lot)</div>
+            <div style="font-size:1.35rem; font-weight:800; color:#fbbf24; font-family:'JetBrains Mono';">{auto_lot_size:.2f} Lot</div>
+            <div style="font-size:0.75rem; color:#fde68a;">مخاطرة {default_risk_pct}% فقط</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 hero_col1, hero_col2 = st.columns([1.15, 2.2])
 
 with hero_col1:
-    # عداد الرادار الكمي (Plotly Cyber Gauge)
     fig_gauge = go.Figure(go.Indicator(
         mode="gauge+number",
         value=bull_probability,
@@ -672,9 +946,9 @@ with hero_col1:
             'borderwidth': 1,
             'bordercolor': "#334155",
             'steps': [
-                {'range': [0, 42], 'color': 'rgba(239, 68, 68, 0.22)'},
-                {'range': [42, 58], 'color': 'rgba(245, 158, 11, 0.18)'},
-                {'range': [58, 100], 'color': 'rgba(16, 185, 129, 0.22)'}
+                {'range': [0, 45], 'color': 'rgba(239, 68, 68, 0.22)'},
+                {'range': [45, 55], 'color': 'rgba(245, 158, 11, 0.18)'},
+                {'range': [55, 100], 'color': 'rgba(16, 185, 129, 0.22)'}
             ],
             'threshold': {'line': {'color': "white", 'width': 3}, 'thickness': 0.75, 'value': bull_probability}
         }
@@ -719,25 +993,22 @@ with hero_col2:
         st.markdown(f"""
         <div class="quant-card">
             <div class="quant-card-title">استهلاك المدى (ATR)</div>
-            <div class="quant-card-val" style="color:#fbbf24;">{atr_used_pct:.0f}%</div>
+            <div class="quant-card-val" style="color:{'#ef4444' if atr_used_pct >= max_atr_limit else '#fbbf24'};">{atr_used_pct:.0f}%</div>
             <div class="quant-card-sub" style="color:#fde68a;">{today_range_pips:.0f} من {atr_14d_pips:.0f} نقطة</div>
         </div>
         """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. الأقسام التفاعلية الـ 5 (Modern Navigation Tabs)
+# 8. الأقسام التفاعلية الـ 5 (Modern Navigation Tabs)
 # =========================================================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🎯 1. خريطة السيولة ومحاكي المستقبل",
+    "🎯 1. خريطة السيولة و SMC (FVG+OB)",
     "🌊 2. الأوردر فلو والفوليوم بروفايل",
-    "📊 3. المصفوفة الكمية والاتجاه اليومي",
+    "📊 3. المصفوفة الكمية والـ SMT",
     "🏦 4. السندات وتقرير البنوك COT",
     "🧮 5. حاسبة اللوت والأجندة الاقتصادية"
 ])
 
-# ---------------------------------------------------------
-# التبويب 1: مصفوفة الجلسات + الفجوات FVG + مروحة مونتي كارلو للمستقبل
-# ---------------------------------------------------------
 with tab1:
     st.subheader("🕒 مصفوفة سيولة الجلسات الآلية (Session Liquidity Matrix — بتوقيت الجزائر)")
     scol1, scol2, scol3 = st.columns(3)
@@ -766,16 +1037,15 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-    fcol1, fcol2 = st.columns([1.25, 1.45])
+    fcol1, fcol2 = st.columns([1.3, 1.4])
     with fcol1:
-        st.markdown("##### 🧲 مصفوفة فجوات صناع السوق غير المغلقة (Smart Money FVG & Mitigation %)")
+        st.markdown("##### 💎 مصفوفة الفجوات والـ Order Blocks غير المغلقة (FVG + OB Confluence)")
         if not df_fvg_matrix.empty:
             st.dataframe(df_fvg_matrix, use_container_width=True, hide_index=True)
         else:
             st.info("تم ملء جميع الفجوات القريبة (100% Mitigated) — انتظري تشكل فجوة جديدة في الكيلزون.")
             
     with fcol2:
-        # مروحة احتمالات المستقبل (Monte Carlo Stochastic Projection Fan)
         st.markdown("##### 🔮 محاكاة مونتي كارلو لمسار السعر المستقبلي (Monte Carlo Probability Fan)")
         np.random.seed(42)
         n_steps = 20
@@ -791,9 +1061,7 @@ with tab1:
             sim_paths[t, :] = sim_paths[t-1, :] * (1.0 + shocks)
             
         p90 = np.percentile(sim_paths, 90, axis=1)
-        p75 = np.percentile(sim_paths, 75, axis=1)
         p50 = np.percentile(sim_paths, 50, axis=1)
-        p25 = np.percentile(sim_paths, 25, axis=1)
         p10 = np.percentile(sim_paths, 10, axis=1)
         steps_x = list(range(n_steps))
         
@@ -806,9 +1074,6 @@ with tab1:
         fig_mc.update_layout(height=310, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(15,23,42,0.5)", margin=dict(l=10, r=10, t=15, b=10), xaxis_title="الشموع المستقبلية القادمة", yaxis_title="السعر المتوقع")
         st.plotly_chart(fig_mc, use_container_width=True)
 
-# ---------------------------------------------------------
-# التبويب 2: الأوردر فلو، الفوليوم بروفايل، ومؤشر السيولة MFI
-# ---------------------------------------------------------
 with tab2:
     st.subheader(f"🌊 تحليل الأوردر فلو (CVD)، مؤشر السيولة المؤسساتية (MFI)، والفوليوم بروفايل — ({exec_tf})")
     st.markdown(f"**📌 تشخيص السيولة اللحظي:** `{mfi_status}`  |  **الأوردر فلو:** `{absorption_status}`")
@@ -818,7 +1083,7 @@ with tab2:
         fig_of = make_subplots(
             rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.04,
             row_heights=[0.55, 0.23, 0.22],
-            subplot_titles=("الشارت اللحظي مع VWAP البنكي، POC, VAH/VAL, PDH/PDL", "أعمدة الدلتا الحقيقية (Order Flow Delta)", "مؤشر تدفق السيولة المؤسساتية (Institutional MFI 14)")
+            subplot_titles=("الشارت اللحظي مع خطة القناص، VWAP, POC, VAH/VAL", "أعمدة الدلتا الحقيقية (Order Flow Delta)", "مؤشر تدفق السيولة المؤسساتية (Institutional MFI 14)")
         )
         fig_of.add_trace(go.Candlestick(
             x=recent_intra.index, open=recent_intra['Open'], high=recent_intra['High'],
@@ -826,11 +1091,9 @@ with tab2:
         ), row=1, col=1)
         fig_of.add_trace(go.Scatter(x=recent_intra.index, y=recent_intra['VWAP'], mode='lines', line=dict(color='#f59e0b', width=2), name="VWAP"), row=1, col=1)
         
-        fig_of.add_hline(y=pdh, line_dash="dash", line_color="#ef4444", annotation_text="PDH", row=1, col=1)
-        fig_of.add_hline(y=pdl, line_dash="dash", line_color="#10b981", annotation_text="PDL", row=1, col=1)
-        fig_of.add_hline(y=poc_price, line_dash="solid", line_color="#00e5ff", line_width=2, annotation_text="POC", row=1, col=1)
-        fig_of.add_hline(y=vah_price, line_dash="dot", line_color="#a78bfa", annotation_text="VAH", row=1, col=1)
-        fig_of.add_hline(y=val_price, line_dash="dot", line_color="#a78bfa", annotation_text="VAL", row=1, col=1)
+        fig_of.add_hline(y=auto_entry, line_dash="solid", line_color="#38bdf8", line_width=2, annotation_text="🎯 Entry Limit", row=1, col=1)
+        fig_of.add_hline(y=auto_sl, line_dash="dash", line_color="#ef4444", line_width=1.5, annotation_text="🛑 Stop Loss", row=1, col=1)
+        fig_of.add_hline(y=poc_price, line_dash="dot", line_color="#a78bfa", line_width=1.5, annotation_text="POC", row=1, col=1)
         
         delta_colors = ['#10b981' if d >= 0 else '#ef4444' for d in recent_intra['Delta']]
         fig_of.add_trace(go.Bar(x=recent_intra.index, y=recent_intra['Delta'], marker_color=delta_colors, name="Delta"), row=2, col=1)
@@ -852,11 +1115,8 @@ with tab2:
             fig_vp.update_layout(title="📊 Volume Profile (70% Value Area)", height=640, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", xaxis_title="العقود", yaxis_title="السعر")
             st.plotly_chart(fig_vp, use_container_width=True)
 
-# ---------------------------------------------------------
-# التبويب 3: المصفوفة الكمية والاتجاه اليومي
-# ---------------------------------------------------------
 with tab3:
-    st.subheader("📊 مصفوفة القرار الكمي ومعادلات الفريم اليومي (Daily Institutional Quant)")
+    st.subheader("📊 مصفوفة القرار الكمي، التباعد اللحظي (SMT)، والفريم اليومي")
     q1, q2, q3, q4 = st.columns(4)
     q1.metric("Z-Score اليومي (20D)", f"{z_score_daily:+.2f} σ", "تشبع" if abs(z_score_daily) > 1.5 else "طبيعي")
     q2.metric("معامل هيرست (Hurst H)", f"{hurst_val:.2f}", "اتجاه مستمر (>0.5)" if hurst_val > 0.5 else "تذبذب (<0.5)")
@@ -875,9 +1135,6 @@ with tab3:
     fig_d.update_layout(height=380, xaxis_rangeslider_visible=False, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_d, use_container_width=True)
 
-# ---------------------------------------------------------
-# التبويب 4: السندات وتقرير البنوك COT
-# ---------------------------------------------------------
 with tab4:
     st.subheader("🏦 تحليل السندات، الارتباطات، وتقرير تمركز الصناديق (CFTC COT Report)")
     mc1, mc2, mc3, mc4 = st.columns(4)
@@ -905,18 +1162,13 @@ with tab4:
         fig_macro.update_layout(title="📉 المقارنة النسبية (30 يوم): اليورو مقابل الدولار والعوائد", height=360, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_macro, use_container_width=True)
 
-# ---------------------------------------------------------
-# التبويب 5: حاسبة اللوت والأجندة الاقتصادية
-# ---------------------------------------------------------
 with tab5:
-    st.subheader("🧮 حاسبة حجم العقد (Lot Size) واحتمال ضرب الهدف كمياً")
+    st.subheader("🧮 حاسبة حجم العقد (Lot Size) المربوطة بخطة القناص الآلية")
     rc1, rc2 = st.columns([1.1, 1.2])
     with rc1:
-        entry_in = st.number_input("سعر الدخول (Entry Price):", value=float(round(current_price, 4)), format="%.5f", step=0.00010)
-        default_sl = float(round(current_price - 0.0015, 4)) if bull_probability >= 50 else float(round(current_price + 0.0015, 4))
-        default_tp = float(round(current_price + 0.0045, 4)) if bull_probability >= 50 else float(round(current_price - 0.0045, 4))
-        sl_in = st.number_input("سعر وقف الخسارة (Stop Loss):", value=default_sl, format="%.5f", step=0.00010)
-        tp_in = st.number_input("سعر الهدف (Take Profit):", value=default_tp, format="%.5f", step=0.00010)
+        entry_in = st.number_input("سعر الدخول المقترح (Entry Price):", value=float(auto_entry), format="%.5f", step=0.00010)
+        sl_in = st.number_input("سعر وقف الخسارة المحمي (Stop Loss):", value=float(auto_sl), format="%.5f", step=0.00010)
+        tp_in = st.number_input("سعر الهدف المقترح (Take Profit):", value=float(auto_tp1), format="%.5f", step=0.00010)
         
     with rc2:
         sl_pips = abs(entry_in - sl_in) * 10000.0
@@ -939,45 +1191,8 @@ with tab5:
             
     st.divider()
     st.subheader("📰 الأجندة الاقتصادية الآلية (بتوقيت الجزائر CET)")
-    
-    @st.cache_data(ttl=3600)
-    def fetch_algeria_forex_calendar():
-        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
-        try:
-            resp = requests.get(url, timeout=10)
-            root = ET.fromstring(resp.content)
-            events = []
-            for item in root.findall('event'):
-                country = item.find('country').text if item.find('country') is not None else ""
-                impact = item.find('impact').text if item.find('impact') is not None else ""
-                if country in ['USD', 'EUR'] and impact in ['High', 'Medium']:
-                    date_s = item.find('date').text or ""
-                    time_s = item.find('time').text or ""
-                    dz_time_display = time_s
-                    try:
-                        dt_gmt = datetime.strptime(f"{date_s} {time_s}", "%m-%d-%Y %I:%M%p")
-                        dt_gmt = pytz.timezone('UTC').localize(dt_gmt)
-                        dt_dz_ev = dt_gmt.astimezone(tz_dz)
-                        dz_time_display = dt_dz_ev.strftime("%H:%M (بتوقيت الجزائر)")
-                        date_s = dt_dz_ev.strftime("%Y-%m-%d")
-                    except Exception:
-                        pass
-                    events.append({
-                        "التاريخ": date_s,
-                        "التوقيت": dz_time_display,
-                        "العملة": "🇺🇸 USD" if country == "USD" else "🇪🇺 EUR",
-                        "القوة": "🔥 قوي جداً" if impact == "High" else "🔸 متوسط",
-                        "الخبر الاقتصادي": item.find('title').text or "-",
-                        "التوقع": item.find('forecast').text or "-",
-                        "السابق": item.find('previous').text or "-"
-                    })
-            return pd.DataFrame(events)
-        except Exception:
-            return pd.DataFrame()
-
-    df_news = fetch_algeria_forex_calendar()
-    if not df_news.empty:
-        st.dataframe(df_news, use_container_width=True, hide_index=True)
+    if not df_news_full.empty:
+        display_cols = ["التاريخ", "التوقيت", "العملة", "القوة", "الخبر الاقتصادي", "التوقع", "السابق"]
+        st.dataframe(df_news_full[display_cols], use_container_width=True, hide_index=True)
     else:
         st.info("الأجندة الاقتصادية تتحدث تلقائياً مع افتتاح الأسبوع الجديد.")
-
